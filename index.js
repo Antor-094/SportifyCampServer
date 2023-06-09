@@ -29,6 +29,7 @@ async function run() {
     await client.connect();
 
     const courseCollections = client.db("campSporty").collection("courses");
+    const instructorCollection= client.db("campSporty").collection("instructors");
 
 
 
@@ -37,6 +38,12 @@ async function run() {
 app.get('/courses', async (req, res) => {
     
     const result = await courseCollections.find().sort({ enrolledStudents: -1 }).toArray();
+    res.send(result);
+  })
+
+  app.get('/instructors', async (req, res) => {
+    
+    const result = await instructorCollection.find().toArray();
     res.send(result);
   })
 
