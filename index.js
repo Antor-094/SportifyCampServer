@@ -69,16 +69,42 @@ app.get('/courses', async (req, res) => {
     res.send(result);
   })
   app.get('/selectedcourse', async (req, res) => {
-    
-    const result = await selectedCoursesCollection.find().toArray();
+    const email = req.query.email
+    const result = await selectedCoursesCollection.find({email}).toArray();
     res.send(result);
   })
 
-app.post('/selectedcourse',async (req,res)=>{
-  const body = req.body
-  const result = await selectedCoursesCollection.insertOne(body)
-  res.send(result)
-})
+  app.post('/selectedcourse', async (req, res) => {
+    const { email, ...course } = req.body;
+  
+    // Check if the user has already enrolled in the course
+    const existingRecord = await selectedCoursesCollection.findOne({
+      email: email,
+      courseId: course._id
+    });
+  
+    if (existingRecord) {
+      return res.status(400).send({
+        error: true,
+        message: 'User has already enrolled in this course.'
+      });
+    }
+  
+    // Insert the selected course with the user's email
+    const result = await selectedCoursesCollection.insertOne({
+      email: email,
+      courseId: course._id
+    });
+  
+    res.send(result);
+  });
+  
+
+// app.post('/selectedcourse',async (req,res)=>{
+//   const body = req.body
+//   const result = await selectedCoursesCollection.insertOne(body)
+//   res.send(result)
+// })
 
 
 
