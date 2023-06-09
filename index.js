@@ -28,14 +28,15 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
-    const courseCollection = client.db("campSporty").collection("courses");
+    const courseCollections = client.db("campSporty").collection("courses");
 
 
 
 //all Courses get operation
 
 app.get('/courses', async (req, res) => {
-    const result = await courseCollection.find().toArray();
+    
+    const result = await courseCollections.find().sort({ enrolledStudents: -1 }).toArray();
     res.send(result);
   })
 
