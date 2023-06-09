@@ -100,11 +100,16 @@ app.get('/courses', async (req, res) => {
   });
   
 
-// app.post('/selectedcourse',async (req,res)=>{
-//   const body = req.body
-//   const result = await selectedCoursesCollection.insertOne(body)
-//   res.send(result)
-// })
+  app.delete('/selectedcourse/:id', async (req, res) => {
+    const courseId = req.params.id;
+    try {
+      await selectedCoursesCollection.deleteOne({ _id: new ObjectId(courseId) });
+      res.status(200).json({ success: true, message: 'Course deleted successfully' });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: true, message: 'An error occurred while deleting the course' });
+    }
+  });
 
 
 
