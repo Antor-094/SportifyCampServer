@@ -4,6 +4,8 @@ const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 const jwt = require('jsonwebtoken')
+// const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 
 
 const app = express();
@@ -30,7 +32,7 @@ const verifyJWT = (req, res, next) => {
 
 
 
-const uri =`mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@phero.lyjn1mj.mongodb.net/?retryWrites=true&w=majority`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@phero.lyjn1mj.mongodb.net/?retryWrites=true&w=majority`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -47,71 +49,126 @@ async function run() {
     await client.connect();
 
     const courseCollections = client.db("campSporty").collection("courses");
-    const instructorCollection= client.db("campSporty").collection("instructors");
-const selectedCoursesCollection= client.db('campSporty').collection('selectedCourses')
-   app.post('/jwt',(req,res)=>{
-    const user = req.body
-    const token = jwt.sign(user,process.env.ACCESS_TOKEN,{expiresIn:'1h'})
-    res.send({token})
-   })
+    const instructorCollection = client.db("campSporty").collection("instructors");
+    const selectedCoursesCollection = client.db('campSporty').collection('selectedCourses')
+    const paymentCollection = client.db("campSporty").collection("payments");
+    app.post('/jwt', (req, res) => {
+      const user = req.body
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN, { expiresIn: '1h' })
+      res.send({ token })
+    })
 
-//all Courses get operation
+    //all Courses get operation
 
-app.get('/courses', async (req, res) => {
-    
-    const result = await courseCollections.find().sort({ enrolledStudents: -1 }).toArray();
-    res.send(result);
-  })
+    app.get('/courses', async (req, res) => {
 
-  app.get('/instructors', async (req, res) => {
-    
-    const result = await instructorCollection.find().toArray();
-    res.send(result);
-  })
-  app.get('/selectedcourse', async (req, res) => {
-    const email = req.query.email
-    const result = await selectedCoursesCollection.find({email}).toArray();
-    res.send(result);
-  })
+      const result = await courseCollections.find().sort({ enrolledStudents: -1 }).toArray();
+      res.send(result);
+    })
 
-  app.post('/selectedcourse', async (req, res) => {
-    const { email, ...course } = req.body;
-  
-    // Check if the user has already enrolled in the course
-    const existingRecord = await selectedCoursesCollection.findOne({
-      email: email,
-      courseId: course._id
-    });
-  
-    if (existingRecord) {
-      return res.status(400).send({
-        error: true,
-        message: 'User has already enrolled in this course.'
+    app.get('/instructors', async (req, res) => {
+
+      const result = await instructorCollection.find().toArray();
+      res.send(result);
+    })
+    app.get('/selectedcourse', async (req, res) => {
+      const email = req.query.email
+      const result = await selectedCoursesCollection.find({ email }).toArray();
+      res.send(result);
+    })
+
+    app.post('/selectedcourse', async (req, res) => {
+      const { email, ...course } = req.body;
+
+      // Check if the user has already enrolled in the course
+      const existingRecord = await selectedCoursesCollection.findOne({
+        email: email,
+        courseId: course._id
       });
-    }
-  
-    // Insert the selected course with the user's email
-    const result = await selectedCoursesCollection.insertOne({
-      email: email,
-      courseId: course._id
+
+      if (existingRecord) {
+        return res.status(400).send({
+          error: true,
+          message: 'User has already enrolled in this course.'
+        });
+      }
+
+      // Insert the selected course with the user's email
+      const result = await selectedCoursesCollection.insertOne({
+        email: email,
+        courseId: course._id,
+        courseName: course?.courseName,
+        enrolledStudents: course?.enrolledStudents,
+        price: course?.price,
+        availableSeats: course?.availableSeats,
+        instructorId: course?.instructorId,
+        instructorName: course?.instructorName,
+        courseImage: course?.courseImage
+      });
+
+      res.send(result);
     });
-  
-    res.send(result);
-  });
-  
-
-  app.delete('/selectedcourse/:id', async (req, res) => {
-    const courseId = req.params.id;
-    try {
-      await selectedCoursesCollection.deleteOne({ _id: new ObjectId(courseId) });
-      res.status(200).json({ success: true, message: 'Course deleted successfully' });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: true, message: 'An error occurred while deleting the course' });
-    }
-  });
 
 
+    app.delete('/selectedcourse/:id', async (req, res) => {
+      const courseId = req.params.id;
+      try {
+        await selectedCoursesCollection.deleteOne({ _id: new ObjectId(courseId) });
+        res.status(200).json({ success: true, message: 'Course deleted successfully' });
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: true, message: 'An error occurred while deleting the course' });
+      }
+    });
+
+    app.post('/create-payment-intent', async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price * 100);
+      const paymentIntent = await stripe.paymentIntents.create({
+          amount: amount,
+          currency: 'usd',
+          payment_method_types: ['card']
+      });
+      res.send({
+          clientSecret: paymentIntent.client_secret
+      })
+  })
+
+  app.post('/payments', async (req, res) => {
+    const payment = req.body;
+    const insertResult = await paymentCollection.insertOne(payment);
+    const query = { _id: new ObjectId(payment.item) }
+    const deletedResult = await selectedCoursesCollection.deleteOne(query)
+
+    res.send({ insertResult, deletedResult });
+})
+
+app.get('/payments', async (req, res) => {
+    const query = { email:req.query.email }
+    const Result = await paymentCollection.find(query).toArray();
+    res.send(Result);
+})
+
+    // app.post('/charge', async (req, res) => {
+    //   const { paymentMethodId, amount } = req.body;
+
+    //   try {
+    //     const paymentIntent = await stripe.paymentIntents.create({
+    //       amount,
+    //       currency: 'usd',
+    //       payment_method: paymentMethodId,
+    //       confirm: true,
+    //     });
+
+    //     // Handle successful payment
+    //     // You can save the paymentIntent.id and other relevant details to your database
+
+    //     res.status(200).send({ success: true, paymentIntent });
+    //   } catch (error) {
+    //     console.error(error);
+    //     res.status(500).send({ error: true, message: 'An error occurred during payment processing' });
+    //   }
+    // });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
@@ -119,14 +176,14 @@ app.get('/courses', async (req, res) => {
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
-  } 
+  }
 }
 run().catch(console.dir);
 
 app.get('/', (req, res) => {
-    res.send('SportifySports is running');
-  });
-  
-  app.listen(port, () => {
-    console.log(`SportifySports API is running on port: ${port}`);
-  });
+  res.send('SportifySports is running');
+});
+
+app.listen(port, () => {
+  console.log(`SportifySports API is running on port: ${port}`);
+});
