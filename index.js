@@ -121,6 +121,12 @@ async function run() {
       }
     });
 
+    app.get('/payments', async (req, res) => {
+      const query = { email:req.query.email }
+      const Result = await paymentCollection.find(query).toArray();
+      res.send(Result);
+  })
+
     app.post('/create-payment-intent', async (req, res) => {
       const { price } = req.body;
       const amount = parseInt(price * 100);
@@ -140,14 +146,32 @@ async function run() {
     const query = { _id: new ObjectId(payment.item) }
     const deletedResult = await selectedCoursesCollection.deleteOne(query)
 
-    res.send({ insertResult, deletedResult });
+    const filter = {_id: new ObjectId(payment?.courseId)}
+    const updatedDoc={
+
+          $inc:{
+            availableSeats:-1,enrolledStudents:1
+          }
+    }
+    const updateResult = await courseCollections.updateOne(filter,updatedDoc)
+    res.send({ insertResult, deletedResult ,updateResult});
 })
 
-app.get('/payments', async (req, res) => {
-    const query = { email:req.query.email }
-    const Result = await paymentCollection.find(query).toArray();
-    res.send(Result);
-})
+
+
+// app.get('/payments', async (req, res) => {
+//   const email = req.query.email;
+//   const query = { email };
+//   const sortOptions = { date: -1 }; // Sort by date in descending order
+
+//   try {
+//     const result = await paymentCollection.find(query).sort(sortOptions).toArray();
+//     res.send(result);
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).send('Internal Server Error');
+//   }
+// });
 
     // app.post('/charge', async (req, res) => {
     //   const { paymentMethodId, amount } = req.body;
