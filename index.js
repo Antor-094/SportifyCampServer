@@ -123,7 +123,7 @@ async function run() {
 
     app.get('/payments', async (req, res) => {
       const query = { email:req.query.email }
-      const Result = await paymentCollection.find(query).toArray();
+      const Result = await paymentCollection.find(query).sort({date:-1}).toArray();
       res.send(Result);
   })
 
