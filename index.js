@@ -48,6 +48,7 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
+    const usersCollections = client.db("campSporty").collection("users");
     const courseCollections = client.db("campSporty").collection("courses");
     const instructorCollection = client.db("campSporty").collection("instructors");
     const selectedCoursesCollection = client.db('campSporty').collection('selectedCourses')
@@ -57,6 +58,17 @@ async function run() {
       const token = jwt.sign(user, process.env.ACCESS_TOKEN, { expiresIn: '1h' })
       res.send({ token })
     })
+
+
+
+    // user realted api
+    app.post('/users',async(req,res)=>{
+
+      const user = req.body
+      const result = await usersCollections.insertOne(user)
+      res.send(result)
+    })
+
 
     //all Courses get operation
 
