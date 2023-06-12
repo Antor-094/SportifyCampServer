@@ -2,8 +2,8 @@ const express = require('express');
 const port = process.env.PORT || 5000;
 const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-require('dotenv').config();
 const jwt = require('jsonwebtoken')
+require('dotenv').config();
 // const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 
@@ -21,7 +21,7 @@ const verifyJWT = (req, res, next) => {
   // bearer token
   const token = authorization.split(' ')[1];
 
-  jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
     if (err) {
       return res.status(401).send({ error: true, message: 'unauthorized access' })
     }
@@ -53,9 +53,10 @@ async function run() {
     const instructorCollection = client.db("campSporty").collection("instructors");
     const selectedCoursesCollection = client.db('campSporty').collection('selectedCourses')
     const paymentCollection = client.db("campSporty").collection("payments");
+
     app.post('/jwt', (req, res) => {
       const user = req.body
-      const token = jwt.sign(user, process.env.ACCESS_TOKEN, { expiresIn: '1h' })
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
       res.send({ token })
     })
 
@@ -78,6 +79,19 @@ async function run() {
       }
       const result = await usersCollections.insertOne(user)
       res.send(result)
+    })
+
+    app.get('/users/admin/:email', verifyJWT, async (req, res) => {
+      const email = req.params.email;
+
+      if (req.decoded.email !== email) {
+        res.send({ admin: false })
+      }
+
+      const query = { email: email }
+      const user = await usersCollections.findOne(query);
+      const result = { admin: user?.role === 'admin' }
+      res.send(result);
     })
 
     app.patch('/users/admin/:id', async (req, res) => {
@@ -108,8 +122,16 @@ async function run() {
       const result = await instructorCollection.find().toArray();
       res.send(result);
     })
-    app.get('/selectedcourse', async (req, res) => {
+    app.get('/selectedcourse',verifyJWT, async (req, res) => {
       const email = req.query.email
+      if(!email){
+        res.send([])
+      }
+      const decodedEmail = req.decoded.email;
+      if (email !== decodedEmail) {
+        return res.status(403).send({ error: true, message: 'forbidden access' })
+      }
+
       const result = await selectedCoursesCollection.find({ email }).toArray();
       res.send(result);
     })
