@@ -62,7 +62,7 @@ async function run() {
 
 
 
-    // user realted api
+    // user related api
 
 
     app.get('/users',async(req,res)=>{
@@ -87,7 +87,6 @@ async function run() {
       if (req.decoded.email !== email) {
         res.send({ admin: false })
       }
-
       const query = { email: email }
       const user = await usersCollections.findOne(query);
       const result = { admin: user?.role === 'admin' }
@@ -101,6 +100,20 @@ async function run() {
       const updateDoc = {
         $set: {
           role: 'admin'
+        },
+      };
+
+      const result = await usersCollections.updateOne(filter, updateDoc);
+      res.send(result);
+
+    })
+    app.patch('/users/instructor/:id', async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          role: 'instructor'
         },
       };
 
@@ -122,15 +135,17 @@ async function run() {
       const result = await instructorCollection.find().toArray();
       res.send(result);
     })
-    app.get('/selectedcourse',verifyJWT, async (req, res) => {
+    app.get('/selectedcourse', async (req, res) => {
       const email = req.query.email
       if(!email){
         res.send([])
+        return
       }
-      const decodedEmail = req.decoded.email;
-      if (email !== decodedEmail) {
-        return res.status(403).send({ error: true, message: 'forbidden access' })
-      }
+      
+      // const decodedEmail = req.decoded.email;
+      // if (email !== decodedEmail) {
+      //   return res.status(403).send({ error: true, message: 'forbidden access' })
+      // }
 
       const result = await selectedCoursesCollection.find({ email }).toArray();
       res.send(result);
