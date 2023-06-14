@@ -139,10 +139,27 @@ async function run() {
 
     app.get('/courses', async (req, res) => {
 
-      const result = await courseCollections.find().sort({ enrolledStudents: -1 }).toArray();
+      const result = await courseCollections.find().sort({ availableSeats: 1}).toArray();
       res.send(result);
     })
+    app.post('/courses',async(req,res)=>{
+      const body = req.body
+      const result = await courseCollections.insertOne(body)
+    })
+    app.patch('/courses/:id', async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          status: 'approved'
+        },
+      };
 
+      const result = await courseCollections.updateOne(filter, updateDoc);
+      res.send(result);
+
+    })
     app.get('/instructors', async (req, res) => {
 
       const result = await instructorCollection.find().toArray();
