@@ -148,18 +148,22 @@ async function run() {
     })
     app.patch('/courses/:id', async (req, res) => {
       const id = req.params.id;
+      const query = req.query.status
+      const feedbackQuery = req.query.feedback;
       console.log(id);
       const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
-          status: 'approved'
+          ...(query && { status: query }),
+          ...(feedbackQuery && { feedback: feedbackQuery }),
         },
       };
-
-      const result = await courseCollections.updateOne(filter, updateDoc);
+      const options = { upsert: true };
+      const result = await courseCollections.updateOne(filter, updateDoc,options);
       res.send(result);
 
     })
+
     app.get('/instructors', async (req, res) => {
 
       const result = await instructorCollection.find().toArray();
