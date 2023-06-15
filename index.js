@@ -135,6 +135,14 @@ async function run() {
 
     })
 
+    app.get('/instructorsCourses/:email',async(req,res)=>{
+    const email = req.params.email
+      const filter = {instructorEmail:email}
+      const result = await courseCollections.find(filter).toArray()
+      res.send(result)
+
+    })
+
     //all Courses get operation
 
     app.get('/courses', async (req, res) => {
