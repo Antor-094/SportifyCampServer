@@ -153,6 +153,7 @@ async function run() {
     app.post('/courses',async(req,res)=>{
       const body = req.body
       const result = await courseCollections.insertOne(body)
+      res.send(result)
     })
     app.patch('/courses/:id', async (req, res) => {
       const id = req.params.id;
